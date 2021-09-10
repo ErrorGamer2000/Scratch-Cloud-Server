@@ -1,0 +1,24 @@
+{
+  "name": "scratch-cloud-server",
+  "version": "1.0.0",
+  "description": "A cloud server to allow users to store and retreive game data to/from the cloud.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.1",
+    "lz-string": "^1.4.4",
+    "scratch3-api": "^3.5.6"
+  },
+  "type": "module",
+  "nodemonConfig": {
+    "ignore": [
+      "data/*"
+    ]
+  }
+}

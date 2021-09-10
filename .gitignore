@@ -74,3 +74,15 @@ typings/
 
 # FuseBox cache
 .fusebox/
+
+# Project lockfile
+package-lock.json
+
+# Project list
+projects.json
+
+# Project data
+data/
+
+# settings
+settings.json
