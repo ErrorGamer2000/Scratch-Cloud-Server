@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { createRequire } from "module";
-import fs from "fs";
+import fs from "fs-extra";
 import { UserSession } from "scratch3-api";
 import chalk from "chalk";
 import LZString from "lz-string";
@@ -17,10 +17,10 @@ import LZString from "lz-string";
 const require = createRequire(import.meta.url);
 const msg = {
   error: function (name, ...args) {
-    return console.log(`${name} ${chalk.red("error")}: `, ...args);
+    return console.log(`${name} ${chalk.bold.red("error")}: `, ...args);
   },
   warn: function (name, ...args) {
-    return console.log(`${name} ${chalk.yellow("warn")}: `, ...args);
+    return console.log(`${name} ${chalk.bold.yellow("warn")}: `, ...args);
   },
   log: function (name, ...args) {
     return console.log(`${name}: `, ...args);
@@ -36,10 +36,7 @@ if (!fs.existsSync("./projects.json")) {
   error("No Project List. Please read setup instructions.");
 }
 
-if (!fs.existsSync("./data")) {
-  warn("No Data Directory Found. Creating New One...");
-  fs.mkdirSync("./data");
-}
+fs.ensureDirSync("./data");
 
 const projects = require("./projects.json");
 const settings = require("./settings.json");
@@ -61,7 +58,7 @@ if (!env.SCRATCH_USERNAME || !env.SCRATCH_PASSWORD) {
   process.exit(1);
 }
 
-log(chalk.green("Launching Cloud Server..."));
+log(chalk.bold.green("Launching Cloud Server..."));
 
 console.log("  Loggin In...");
 
@@ -93,25 +90,25 @@ await new Promise(function (resolve) {
 
 console.clear();
 
-log(chalk.green("Initializing Server..."));
+log(chalk.bold.green("Initializing Server..."));
 
 for (const project of projects) {
-  log(`Creating server for project ${chalk.blue(project.id)}...`);
+  log(`Creating server for project ${chalk.bold.blue(project.id)}...`);
   await serve(session, project);
 }
 
 async function serve(session, project) {
   const log = msg.log.bind(
       msg.log,
-      `Scratch-Cloud-Server (${chalk.blue(project.id)})`
+      `Scratch-Cloud-Server (${chalk.bold.blue(project.id)})`
     ),
     warn = msg.warn.bind(
       msg.warn,
-      `Scratch-Cloud-Server (${chalk.blue(project.id)})`
+      `Scratch-Cloud-Server (${chalk.bold.blue(project.id)})`
     ),
     error = msg.error.bind(
       msg.error,
-      `Scratch-Cloud-Server (${chalk.blue(project.id)})`
+      `Scratch-Cloud-Server (${chalk.bold.blue(project.id)})`
     );
 
   if (!project.scratch && !project.turbowarp) {
@@ -125,15 +122,21 @@ async function serve(session, project) {
       session.cloudSession(project.id),
       msg.log.bind(
         msg.log,
-        `${chalk.hex("#ffab1a")("Scratch")} (${chalk.blue(project.id)})`
+        `${chalk.bold.hex("#ffab1a")("Scratch")} (${chalk.bold.blue(
+          project.id
+        )})`
       ),
       msg.warn.bind(
         msg.warn,
-        `${chalk.hex("#ffab1a")("Scratch")} (${chalk.blue(project.id)})`
+        `${chalk.bold.hex("#ffab1a")("Scratch")} (${chalk.bold.blue(
+          project.id
+        )})`
       ),
       msg.error.bind(
         msg.error,
-        `${chalk.hex("#ffab1a")("Scratch")} (${chalk.blue(project.id)})`
+        `${chalk.bold.hex("#ffab1a")("Scratch")} (${chalk.bold.blue(
+          project.id
+        )})`
       )
     );
     log("Connected to Scratch!");
@@ -144,15 +147,15 @@ async function serve(session, project) {
       session.cloudSession(project.id, true),
       msg.log.bind(
         msg.log,
-        `${chalk.redBright("Turbowarp")} (${chalk.blue(project.id)})`
+        `${chalk.bold.redBright("Turbowarp")} (${chalk.bold.blue(project.id)})`
       ),
       msg.warn.bind(
         msg.warn,
-        `${chalk.redBright("Turbowarp")} (${chalk.blue(project.id)})`
+        `${chalk.bold.redBright("Turbowarp")} (${chalk.bold.blue(project.id)})`
       ),
       msg.error.bind(
         msg.error,
-        `${chalk.redBright("Turbowarp")} (${chalk.blue(project.id)})`
+        `${chalk.bold.redBright("Turbowarp")} (${chalk.bold.blue(project.id)})`
       )
     );
     log("Connected to Turbowarp!");
@@ -160,6 +163,7 @@ async function serve(session, project) {
 
   async function run(sp, log, warn, error) {
     const cloud = await sp;
+    let isTW = !!cloud.usetw;
     let queue = [];
     const Queue = cloud.name("Queue");
     const CurrentUser = cloud.name("Current User");
@@ -172,9 +176,28 @@ async function serve(session, project) {
       queue.push(...a);
     };
 
+    let recent = [];
+
     const { stringify, numerify } = cloud;
 
+    log("Resetting Variables...");
+
+    cloud.set(Queue, 0);
+    cloud.set(CurrentUser, 0);
+    cloud.set(Main, 0);
+    cloud.on("addvariable", function (name, value) {
+      if (value === 0 && isTW) {
+        recent.push(name);
+      }
+    });
+
     cloud.on("set", function (name, value) {
+      if (isTW) {
+        if (recent.includes(name)) {
+          recent.splice(recent.indexOf(name), 1);
+          return;
+        }
+      }
       if (
         settings.logCloudSet &&
         settings.logCloudSet.active &&
@@ -195,12 +218,6 @@ async function serve(session, project) {
         cloud.set(cloud.name("Queue"), 0);
       }
     });
-
-    log("Resetting Variables...");
-
-    cloud.set(Queue, 0);
-    cloud.set(CurrentUser, 0);
-    cloud.set(Main, 0);
 
     while (true) {
       await new Promise(function (resolve, reject) {
